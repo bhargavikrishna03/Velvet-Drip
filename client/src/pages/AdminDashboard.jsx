@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "hhttps://velvet-drip-1.onrender.com/api";
 
 const initialForm = {
   name: "",
