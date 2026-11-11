@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import DishCard from "../Components/DishCard";
 
 const BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "https://velvet-drip-1.onrender.com/api";
 
 const MENU_API_URL = `${BASE_URL}/menu`;
 const COMBO_API_URL = `${BASE_URL}/combos`;
