@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "https://velvet-drip-1.onrender.com/api";
 
 export default function AdminLogin() {
   const [form, setForm] = useState({ username: "", password: "" });
