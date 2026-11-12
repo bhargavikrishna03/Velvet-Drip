@@ -1,9 +1,11 @@
 
 const router = require("express").Router();
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const Order = require("../models/Order");
 const Dish = require("../models/Dish");
+const Combo = require("../models/Combo");
 const auth = require("../middleware/auth");
 
 // ========================================
@@ -19,7 +21,6 @@ router.post("/", async (req, res) => {
       instructions,
     } = req.body;
 
-    // Validate customer details
     if (!customerName || !phone || !address) {
       return res.status(400).json({
         message: "Please provide customer name, phone and address.",
@@ -34,26 +35,57 @@ router.post("/", async (req, res) => {
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
-        message: "Your order must contain at least one dish.",
+        message: "Your order must contain at least one item.",
       });
     }
 
-    // Validate item IDs and quantities
+    const dishIds = [];
+    const comboIds = [];
+
+    // Validate IDs and quantities
     for (const item of items) {
+      const type =
+        item.itemType || (item.comboId ? "combo" : "dish");
+
       if (
-        !item.dishId ||
         !Number.isInteger(item.quantity) ||
         item.quantity < 1
       ) {
         return res.status(400).json({
-          message: "Invalid dish or quantity in order.",
+          message: "Invalid item quantity.",
+        });
+      }
+
+      if (type === "dish") {
+        if (
+          !item.dishId ||
+          !mongoose.Types.ObjectId.isValid(item.dishId)
+        ) {
+          return res.status(400).json({
+            message: "Invalid dish ID.",
+          });
+        }
+
+        dishIds.push(item.dishId);
+      } else if (type === "combo") {
+        if (
+          !item.comboId ||
+          !mongoose.Types.ObjectId.isValid(item.comboId)
+        ) {
+          return res.status(400).json({
+            message: "Invalid combo ID.",
+          });
+        }
+
+        comboIds.push(item.comboId);
+      } else {
+        return res.status(400).json({
+          message: "Invalid item type.",
         });
       }
     }
 
     // Fetch actual dishes from MongoDB
-    const dishIds = items.map((item) => item.dishId);
-
     const dishes = await Dish.find({
       _id: { $in: dishIds },
     });
@@ -62,30 +94,79 @@ router.post("/", async (req, res) => {
       dishes.map((dish) => [dish._id.toString(), dish])
     );
 
-    // Build trusted order items
+    // Fetch actual combos and their included dishes
+    const combos = await Combo.find({
+      _id: { $in: comboIds },
+    }).populate("dishes", "name available");
+
+    const comboMap = new Map(
+      combos.map((combo) => [combo._id.toString(), combo])
+    );
+
     const orderItems = [];
 
+    // Build trusted order items
     for (const item of items) {
-      const dish = dishMap.get(item.dishId.toString());
+      const type =
+        item.itemType || (item.comboId ? "combo" : "dish");
 
-      if (!dish) {
-        return res.status(404).json({
-          message: `Dish not found: ${item.dishId}`,
+      if (type === "dish") {
+        const dish = dishMap.get(item.dishId.toString());
+
+        if (!dish) {
+          return res.status(404).json({
+            message: "Dish not found.",
+          });
+        }
+
+        if (!dish.available) {
+          return res.status(400).json({
+            message: `${dish.name} is currently unavailable.`,
+          });
+        }
+
+        orderItems.push({
+          itemType: "dish",
+          dishId: dish._id,
+          name: dish.name,
+          price: dish.price,
+          quantity: item.quantity,
         });
       }
 
-      if (!dish.available) {
-        return res.status(400).json({
-          message: `${dish.name} is currently unavailable.`,
+      if (type === "combo") {
+        const combo = comboMap.get(item.comboId.toString());
+
+        if (!combo) {
+          return res.status(404).json({
+            message: "Combo offer not found.",
+          });
+        }
+
+        if (!combo.active) {
+          return res.status(400).json({
+            message: `${combo.name} is currently unavailable.`,
+          });
+        }
+
+        if (
+          !combo.dishes ||
+          combo.dishes.length === 0 ||
+          combo.dishes.some((dish) => !dish.available)
+        ) {
+          return res.status(400).json({
+            message: `${combo.name} contains an unavailable dish.`,
+          });
+        }
+
+        orderItems.push({
+          itemType: "combo",
+          comboId: combo._id,
+          name: combo.name,
+          price: combo.offerPrice,
+          quantity: item.quantity,
         });
       }
-
-      orderItems.push({
-        dishId: dish._id,
-        name: dish.name,
-        price: dish.price,
-        quantity: item.quantity,
-      });
     }
 
     // Calculate total using database prices
@@ -95,14 +176,14 @@ router.post("/", async (req, res) => {
       0
     );
 
-    // Generate unique secure tracking token
+    // Generate tracking token
     const trackingToken = crypto.randomBytes(24).toString("hex");
 
     // Save order
     const newOrder = await Order.create({
-      customerName,
+      customerName: customerName.trim(),
       phone,
-      address,
+      address: address.trim(),
       items: orderItems,
       totalAmount,
       trackingToken,
@@ -134,7 +215,6 @@ router.get("/", auth, async (req, res) => {
     });
 
     return res.status(200).json(orders);
-
   } catch (error) {
     console.error("Fetch orders error:", error);
 
@@ -151,15 +231,9 @@ router.get("/track/:token", async (req, res) => {
   try {
     const token = req.params.token.trim();
 
-    console.log("Received tracking token:", token);
-
     const order = await Order.findOne({
       trackingToken: token,
-    }).select(
-      "items totalAmount status paymentStatus createdAt"
-    );
-
-    console.log("Database result:", order);
+    }).select("items totalAmount status paymentStatus createdAt");
 
     if (!order) {
       return res.status(404).json({
@@ -177,7 +251,6 @@ router.get("/track/:token", async (req, res) => {
         createdAt: order.createdAt,
       },
     });
-
   } catch (error) {
     console.error("Tracking error:", error);
 
@@ -228,7 +301,6 @@ router.patch("/:id/status", auth, async (req, res) => {
       message: "Order status updated successfully!",
       order,
     });
-
   } catch (error) {
     console.error("Update order status error:", error);
 
