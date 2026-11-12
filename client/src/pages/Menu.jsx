@@ -1,7 +1,7 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import DishCard from "../Components/DishCard";
+import { useCart } from "../Context/CartContext";
 
 const BASE_URL =
   import.meta.env.VITE_API_URL || "https://velvet-drip-1.onrender.com/api";
@@ -10,6 +10,8 @@ const MENU_API_URL = `${BASE_URL}/menu`;
 const COMBO_API_URL = `${BASE_URL}/combos`;
 
 const Menu = () => {
+  const { addComboToCart } = useCart();
+
   const [dishes, setDishes] = useState([]);
   const [combos, setCombos] = useState([]);
 
@@ -24,17 +26,18 @@ const Menu = () => {
   const location = useLocation();
 
   useEffect(() => {
-  if (location.hash === "#full-menu") {
-    setShowFullMenu(true);
+    if (location.hash === "#full-menu") {
+      setShowFullMenu(true);
 
-    setTimeout(() => {
-      document.getElementById("full-menu")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 300);
-  }
-}, [location.hash]);
+      setTimeout(() => {
+        document.getElementById("full-menu")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 300);
+    }
+  }, [location.hash]);
+
   useEffect(() => {
     const fetchDishes = async () => {
       try {
@@ -97,9 +100,7 @@ const Menu = () => {
   const categories = useMemo(() => {
     return [
       "All",
-      ...new Set(
-        dishes.map((dish) => dish.category).filter(Boolean)
-      ),
+      ...new Set(dishes.map((dish) => dish.category).filter(Boolean)),
     ];
   }, [dishes]);
 
@@ -109,8 +110,7 @@ const Menu = () => {
     return dishes
       .filter((dish) => {
         const matchesCategory =
-          selectedCategory === "All" ||
-          dish.category === selectedCategory;
+          selectedCategory === "All" || dish.category === selectedCategory;
 
         const matchesSearch =
           dish.name?.toLowerCase().includes(searchText) ||
@@ -118,9 +118,7 @@ const Menu = () => {
 
         return matchesCategory && matchesSearch;
       })
-      .sort(
-        (a, b) => Number(b.available) - Number(a.available)
-      );
+      .sort((a, b) => Number(b.available) - Number(a.available));
   }, [dishes, search, selectedCategory]);
 
   const handleExploreFullMenu = () => {
@@ -134,12 +132,8 @@ const Menu = () => {
   };
 
   return (
-    <section
-      id="menu"
-      className="bg-[#fffaf3] px-5 py-20 lg:px-10"
-    >
+    <section id="menu" className="bg-[#fffaf3] px-5 py-20 lg:px-10">
       <div className="mx-auto max-w-7xl">
-
         {/* Featured Dishes */}
         {featuredDishes.length > 0 && (
           <div className="mb-20">
@@ -188,9 +182,7 @@ const Menu = () => {
           )}
 
           {!comboLoading && comboError && (
-            <p className="py-8 text-center text-red-600">
-              {comboError}
-            </p>
+            <p className="py-8 text-center text-red-600">{comboError}</p>
           )}
 
           {!comboLoading && !comboError && combos.length === 0 && (
@@ -207,22 +199,20 @@ const Menu = () => {
                   : [];
 
                 const foodNames = comboDishes
-                  .map((dish) =>
-                    typeof dish === "object" ? dish.name : ""
-                  )
+                  .map((dish) => (typeof dish === "object" ? dish.name : ""))
                   .filter(Boolean);
 
                 const hasNonVeg = comboDishes.some(
-                  (dish) =>
-                    typeof dish === "object" && dish.isVeg === false
+                  (dish) => typeof dish === "object" && dish.isVeg === false
                 );
 
                 const allVeg =
                   comboDishes.length > 0 &&
                   comboDishes.every(
-                    (dish) =>
-                      typeof dish === "object" && dish.isVeg === true
+                    (dish) => typeof dish === "object" && dish.isVeg === true
                   );
+
+                const isAvailable = combo.active !== false;
 
                 return (
                   <div
@@ -280,6 +270,17 @@ const Menu = () => {
                         <p className="text-2xl font-bold text-[#713f2b]">
                           ₹{Number(combo.offerPrice).toFixed(0)}
                         </p>
+
+                        <button
+                          type="button"
+                          onClick={() => addComboToCart(combo)}
+                          disabled={!isAvailable}
+                          className="mt-4 w-full rounded-xl bg-[#713f2b] px-5 py-3 font-semibold text-white transition hover:bg-[#513326] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isAvailable
+                            ? "Buy This Combo 🛒"
+                            : "Currently Unavailable"}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -301,8 +302,8 @@ const Menu = () => {
             </h2>
 
             <p className="mx-auto mt-4 max-w-xl text-[#6f5a4b]">
-              From freshly brewed coffee to tasty snacks, fast food
-              and desserts, discover everything we serve.
+              From freshly brewed coffee to tasty snacks, fast food and
+              desserts, discover everything we serve.
             </p>
 
             <button
@@ -387,9 +388,7 @@ const Menu = () => {
             )}
 
             {error && (
-              <p className="py-10 text-center text-red-600">
-                {error}
-              </p>
+              <p className="py-10 text-center text-red-600">{error}</p>
             )}
 
             {!loading && !error && dishes.length === 0 && (
