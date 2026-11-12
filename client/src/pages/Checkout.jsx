@@ -5,7 +5,8 @@ import QRCode from "qrcode";
 import { useCart } from "../Context/CartContext";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "https://velvet-drip-1.onrender.com/api";
+  import.meta.env.VITE_API_URL ||
+  "https://velvet-drip-1.onrender.com/api";
 
 const WHATSAPP_NUMBER = "919392422778";
 
@@ -23,6 +24,7 @@ const Checkout = () => {
   const [error, setError] = useState("");
   const [orderConfirmation, setOrderConfirmation] = useState(null);
 
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -32,6 +34,7 @@ const Checkout = () => {
     }));
   };
 
+  // Place order
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     setError("");
@@ -41,8 +44,18 @@ const Checkout = () => {
       return;
     }
 
+    if (!formData.name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
     if (!/^\d{10}$/.test(formData.phone)) {
       setError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    if (!formData.address.trim()) {
+      setError("Please enter your delivery address.");
       return;
     }
 
@@ -51,7 +64,7 @@ const Checkout = () => {
       return;
     }
 
-    // Open a blank tab immediately to avoid popup blocking
+    // Open WhatsApp window before async operations
     const whatsappWindow = window.open("about:blank", "_blank");
 
     if (!whatsappWindow) {
@@ -62,30 +75,29 @@ const Checkout = () => {
     setLoading(true);
 
     try {
-     const orderData = {
-  customerName: formData.name.trim(),
-  phone: formData.phone,
-  address: formData.address.trim(),
-  instructions: formData.instructions.trim(),
+      // Prepare order data
+      const orderData = {
+        customerName: formData.name.trim(),
+        phone: formData.phone,
+        address: formData.address.trim(),
+        instructions: formData.instructions.trim(),
 
-  items: cartItems.map((item) => {
-    if (item.type === "combo") {
-      return {
-        itemType: "combo",
-        comboId: item._id,
-        quantity: item.quantity,
+        items: cartItems.map((item) => {
+          const isCombo = item.type === "combo";
+
+          return {
+            itemType: isCombo ? "combo" : "dish",
+
+            ...(isCombo
+              ? { comboId: item._id }
+              : { dishId: item._id }),
+
+            quantity: item.quantity,
+          };
+        }),
       };
-    }
 
-    return {
-      itemType: "dish",
-      dishId: item._id,
-      quantity: item.quantity,
-    };
-  }),
-};
-
-      // Save order in MongoDB
+      // Send order to backend
       const response = await fetch(`${API_URL}/orders`, {
         method: "POST",
         headers: {
@@ -104,7 +116,11 @@ const Checkout = () => {
 
       const savedOrder = data.order;
 
-      // Generate customer tracking QR code
+      if (!savedOrder) {
+        throw new Error("Order was created but no order details were returned.");
+      }
+
+      // Generate order tracking QR code
       let trackingURL = "";
       let qrCode = "";
 
@@ -122,12 +138,12 @@ const Checkout = () => {
         }
       }
 
-      // Build WhatsApp message using saved order details
-      const orderDetails = savedOrder.items
+      // Prepare WhatsApp order details
+      const orderDetails = (savedOrder.items || [])
         .map(
           (item) =>
             `${item.name} x ${item.quantity} = ₹${
-              item.price * item.quantity
+              Number(item.price) * Number(item.quantity)
             }`
         )
         .join("\n");
@@ -160,7 +176,7 @@ Thank you for choosing Velvet Drip!
         `https://wa.me/${WHATSAPP_NUMBER}?text=` +
         encodeURIComponent(message);
 
-      // Open WhatsApp
+      // Redirect to WhatsApp
       whatsappWindow.location.href = whatsappURL;
 
       // Show confirmation page
@@ -172,7 +188,7 @@ Thank you for choosing Velvet Drip!
         qrCode,
       });
 
-      // Clear cart only after successful database save
+      // Clear cart after successful order
       clearCart();
 
       // Reset form
@@ -185,6 +201,8 @@ Thank you for choosing Velvet Drip!
     } catch (err) {
       whatsappWindow.close();
 
+      console.error("Order placement error:", err);
+
       setError(
         err.message || "Something went wrong. Please try again."
       );
@@ -192,273 +210,306 @@ Thank you for choosing Velvet Drip!
       setLoading(false);
     }
   };
-  const { addComboToCart } = useCart();
 
   // Order confirmation screen
   if (orderConfirmation) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-[#fffaf3] px-5 py-12">
-        <div className="w-full max-w-xl rounded-3xl border border-[#eadfd2] bg-white p-8 text-center shadow-sm">
+      <div className="min-h-screen bg-[#fffaf3] px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-2xl border border-[#eadfd2] bg-white p-6 text-center shadow-lg sm:p-10">
 
-          <div className="mb-4 text-6xl">☕</div>
+          <div className="mb-4 text-6xl">🎉</div>
 
-          <h1 className="text-3xl font-bold text-[#513326]">
-            Thank You!
+          <h1 className="mb-2 text-3xl font-bold text-[#513326]">
+            Order Placed Successfully!
           </h1>
 
-          <p className="mt-3 text-[#8a6b59]">
-            Your Velvet Drip order has been placed successfully.
+          <p className="mb-6 text-gray-600">
+            Thank you for ordering from Velvet Drip.
           </p>
 
-          <div className="my-6 rounded-2xl bg-[#fffaf3] p-5 text-left">
-            <p className="text-sm text-[#8a6b59]">
+          <div className="mb-6 rounded-xl bg-[#fffaf3] p-5 text-left">
+            <p className="mb-2 text-sm text-gray-500">
               Order ID
             </p>
 
-            <p className="mt-1 break-all font-semibold text-[#513326]">
+            <p className="mb-4 break-all font-semibold text-[#713f2b]">
               {orderConfirmation.orderId}
             </p>
 
-            <div className="mt-4 flex justify-between">
-              <span className="text-[#8a6b59]">Total Amount</span>
-              <span className="font-bold text-[#513326]">
-                ₹{Number(orderConfirmation.totalAmount).toFixed(2)}
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-600">
+                Total Amount
+              </span>
+
+              <span className="font-bold text-[#713f2b]">
+                ₹{orderConfirmation.totalAmount}
               </span>
             </div>
 
-            <div className="mt-3 flex justify-between">
-              <span className="text-[#8a6b59]">Order Status</span>
-              <span className="font-semibold text-[#9a5f3d]">
+            <div className="mt-3 flex justify-between gap-4">
+              <span className="text-gray-600">
+                Order Status
+              </span>
+
+              <span className="font-semibold text-[#713f2b]">
                 {orderConfirmation.status}
               </span>
             </div>
           </div>
 
-          {orderConfirmation.qrCode ? (
-            <div className="mt-6">
-              <h2 className="text-xl font-bold text-[#513326]">
+          {/* Order Tracking QR */}
+          {orderConfirmation.qrCode && (
+            <div className="mb-6 rounded-xl border border-[#eadfd2] p-5">
+              <h2 className="mb-2 text-xl font-bold text-[#513326]">
                 Track Your Order
               </h2>
 
-              <p className="mt-2 text-sm text-[#8a6b59]">
-                Scan this QR code to view your order status.
+              <p className="mb-4 text-sm text-gray-500">
+                Scan this QR code to check your order status.
               </p>
 
               <img
                 src={orderConfirmation.qrCode}
                 alt="Order tracking QR code"
-                className="mx-auto mt-5 w-64 rounded-xl border border-[#eadfd2] p-3"
+                className="mx-auto w-56 rounded-lg"
               />
+
+              <p className="mt-3 break-all text-xs text-gray-500">
+                {orderConfirmation.trackingURL}
+              </p>
 
               <a
                 href={orderConfirmation.trackingURL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-block break-all text-sm font-semibold text-[#9a5f3d] underline"
+                className="mt-4 inline-block font-semibold text-[#713f2b] underline"
               >
-                Open Order Tracking
+                Track Order Online
               </a>
             </div>
-          ) : (
-            <p className="mt-5 text-sm text-amber-700">
-              Your order was saved, but the tracking QR could not
-              be generated. Please contact the cafe with your Order ID.
+          )}
+
+          {!orderConfirmation.trackingURL && (
+            <p className="mb-5 text-sm text-amber-700">
+              Your order was placed, but the tracking QR code
+              could not be generated. Please contact the cafe
+              with your order ID.
             </p>
           )}
 
-          <Link
-            to="/"
-            className="mt-8 inline-block rounded-xl bg-[#713f2b] px-7 py-3 font-semibold text-white transition hover:bg-[#513326]"
-          >
-            Back to Home
-          </Link>
+          <div className="flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              to="/"
+              className="rounded-lg bg-[#713f2b] px-6 py-3 font-semibold text-white transition hover:bg-[#513326]"
+            >
+              Back to Home
+            </Link>
+
+            <Link
+              to="/menu"
+              className="rounded-lg border border-[#713f2b] px-6 py-3 font-semibold text-[#713f2b] transition hover:bg-[#fffaf3]"
+            >
+              Order More
+            </Link>
+          </div>
         </div>
-      </section>
+      </div>
     );
   }
 
   // Empty cart screen
   if (cartItems.length === 0) {
     return (
-      <section className="flex min-h-screen items-center justify-center bg-[#fffaf3] px-5">
-        <div className="text-center">
-          <div className="mb-4 text-6xl">🛒</div>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#fffaf3] px-4 text-center">
+        <div className="mb-4 text-6xl">🛒</div>
 
-          <h2 className="text-2xl font-bold text-[#513326]">
-            Your cart is empty
-          </h2>
+        <h2 className="mb-3 text-2xl font-bold text-[#513326]">
+          Your Cart is Empty
+        </h2>
 
-          <p className="mt-2 text-[#8a6b59]">
-            Add some delicious dishes before checkout.
-          </p>
+        <p className="mb-6 text-gray-500">
+          Add some delicious dishes before checking out.
+        </p>
 
-          <Link
-            to="/"
-            className="mt-6 inline-block rounded-xl bg-[#713f2b] px-6 py-3 font-semibold text-white"
-          >
-            Explore Menu
-          </Link>
-        </div>
-      </section>
+        <Link
+          to="/"
+          className="rounded-lg bg-[#713f2b] px-6 py-3 font-semibold text-white hover:bg-[#513326]"
+        >
+          Explore Menu
+        </Link>
+      </div>
     );
   }
 
+  // Checkout form
   return (
-    <section className="min-h-screen bg-[#fffaf3] px-5 py-12 lg:px-10">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen bg-[#fffaf3] px-4 py-12">
+      <div className="mx-auto max-w-3xl">
 
-        <div className="mb-10">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#9a5f3d]">
-            Velvet Drip
-          </p>
+        <h1 className="mb-2 text-center text-3xl font-bold text-[#513326]">
+          Checkout
+        </h1>
 
-          <h1 className="mt-2 text-4xl font-bold text-[#513326]">
-            Checkout
-          </h1>
+        <p className="mb-8 text-center text-gray-500">
+          Complete your details to place your order.
+        </p>
 
-          <p className="mt-2 text-[#8a6b59]">
-            Almost there! Please enter your details.
-          </p>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2">
 
           {/* Customer Form */}
-          <form
-            onSubmit={handlePlaceOrder}
-            className="space-y-6 rounded-3xl border border-[#eadfd2] bg-white p-6 shadow-sm lg:col-span-2"
-          >
-            <h2 className="text-xl font-bold text-[#513326]">
-              Customer Information
+          <div className="rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
+
+            <h2 className="mb-5 text-xl font-bold text-[#513326]">
+              Customer Details
             </h2>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#6f5a4b]">
-                Full Name
-              </label>
+            <form onSubmit={handlePlaceOrder} className="space-y-4">
 
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                required
-                className="w-full rounded-xl border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#9a5f3d]"
-              />
-            </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-[#513326]">
+                  Full Name
+                </label>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#6f5a4b]">
-                Mobile Number
-              </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Enter your name"
+                  required
+                  className="w-full rounded-lg border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#713f2b]"
+                />
+              </div>
 
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Enter 10-digit mobile number"
-                maxLength={10}
-                pattern="[0-9]{10}"
-                required
-                className="w-full rounded-xl border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#9a5f3d]"
-              />
-            </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-[#513326]">
+                  Mobile Number
+                </label>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#6f5a4b]">
-                Delivery Address
-              </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
+                  required
+                  className="w-full rounded-lg border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#713f2b]"
+                />
+              </div>
 
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="Enter your complete delivery address"
-                rows={4}
-                required
-                className="w-full rounded-xl border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#9a5f3d]"
-              />
-            </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-[#513326]">
+                  Delivery Address
+                </label>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#6f5a4b]">
-                Special Instructions (Optional)
-              </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter your complete address"
+                  rows={3}
+                  required
+                  className="w-full rounded-lg border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#713f2b]"
+                />
+              </div>
 
-              <textarea
-                name="instructions"
-                value={formData.instructions}
-                onChange={handleChange}
-                placeholder="Any special requests?"
-                rows={3}
-                className="w-full rounded-xl border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#9a5f3d]"
-              />
-            </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-[#513326]">
+                  Special Instructions (Optional)
+                </label>
 
-            {error && (
-              <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-                {error}
+                <textarea
+                  name="instructions"
+                  value={formData.instructions}
+                  onChange={handleChange}
+                  placeholder="Any special requests?"
+                  rows={2}
+                  className="w-full rounded-lg border border-[#eadfd2] px-4 py-3 outline-none focus:border-[#713f2b]"
+                />
+              </div>
+
+              {error && (
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-lg bg-[#713f2b] px-6 py-3 font-semibold text-white transition hover:bg-[#513326] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Placing Order..." : "Place Order"}
+              </button>
+
+              <p className="text-center text-xs text-gray-500">
+                After placing your order, WhatsApp will open
+                with your order details.
               </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-[#713f2b] px-5 py-4 font-bold text-white transition hover:bg-[#513326] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading
-                ? "Placing Your Order..."
-                : "Place Order on WhatsApp →"}
-            </button>
-
-            <Link
-              to="/cart"
-              className="block text-center text-sm font-semibold text-[#713f2b] hover:underline"
-            >
-              ← Back to Cart
-            </Link>
-          </form>
+            </form>
+          </div>
 
           {/* Order Summary */}
-          <div className="h-fit rounded-3xl border border-[#eadfd2] bg-white p-6 shadow-sm">
-            <h2 className="mb-6 text-xl font-bold text-[#513326]">
+          <div className="h-fit rounded-2xl border border-[#eadfd2] bg-white p-6 shadow-sm">
+
+            <h2 className="mb-5 text-xl font-bold text-[#513326]">
               Order Summary
             </h2>
 
             <div className="space-y-4">
               {cartItems.map((item) => (
                 <div
-                  key={item._id}
-                  className="flex justify-between gap-3 text-sm"
+                  key={`${item.type || "dish"}-${item._id}`}
+                  className="flex items-start justify-between gap-3 border-b border-[#eadfd2] pb-3"
                 >
-                  <span className="text-[#8a6b59]">
-                    {item.name} × {item.quantity}
-                  </span>
+                  <div>
+                    <p className="font-semibold text-[#513326]">
+                      {item.name}
+                    </p>
 
-                  <span className="font-semibold text-[#513326]">
-                    ₹{item.price * item.quantity}
-                  </span>
+                    <p className="text-sm text-gray-500">
+                      {item.type === "combo" ? "Combo" : "Dish"} ×{" "}
+                      {item.quantity}
+                    </p>
+                  </div>
+
+                  <p className="font-semibold text-[#713f2b]">
+                    ₹{Number(item.price) * Number(item.quantity)}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <div className="my-6 border-t border-dashed border-[#d9c5b5]" />
+            <div className="mt-5 flex justify-between border-t border-[#eadfd2] pt-4">
+              <span className="font-bold text-[#513326]">
+                Total Amount
+              </span>
 
-            <div className="flex justify-between text-lg font-bold text-[#513326]">
-              <span>Total</span>
-              <span>₹{cartTotal.toFixed(2)}</span>
+              <span className="text-xl font-bold text-[#713f2b]">
+                ₹{cartTotal}
+              </span>
             </div>
 
-            <p className="mt-5 text-center text-xs text-[#9a7c69]">
-              Your order will be saved and shared through WhatsApp.
+            <p className="mt-4 text-xs text-gray-500">
+              Your order total is calculated and verified by
+              our backend before the order is saved.
             </p>
-          </div>
 
+          </div>
         </div>
+
+        <div className="mt-6 text-center">
+          <Link
+            to="/cart"
+            className="font-semibold text-[#713f2b] underline"
+          >
+            ← Back to Cart
+          </Link>
+        </div>
+
       </div>
-    </section>
+    </div>
   );
 };
 
