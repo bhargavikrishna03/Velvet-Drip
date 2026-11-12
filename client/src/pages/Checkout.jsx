@@ -62,17 +62,28 @@ const Checkout = () => {
     setLoading(true);
 
     try {
-      const orderData = {
-        customerName: formData.name.trim(),
-        phone: formData.phone,
-        address: formData.address.trim(),
-        instructions: formData.instructions.trim(),
+     const orderData = {
+  customerName: formData.name.trim(),
+  phone: formData.phone,
+  address: formData.address.trim(),
+  instructions: formData.instructions.trim(),
 
-        items: cartItems.map((item) => ({
-          dishId: item._id,
-          quantity: item.quantity,
-        })),
+  items: cartItems.map((item) => {
+    if (item.type === "combo") {
+      return {
+        itemType: "combo",
+        comboId: item._id,
+        quantity: item.quantity,
       };
+    }
+
+    return {
+      itemType: "dish",
+      dishId: item._id,
+      quantity: item.quantity,
+    };
+  }),
+};
 
       // Save order in MongoDB
       const response = await fetch(`${API_URL}/orders`, {
@@ -181,6 +192,7 @@ Thank you for choosing Velvet Drip!
       setLoading(false);
     }
   };
+  const { addComboToCart } = useCart();
 
   // Order confirmation screen
   if (orderConfirmation) {
