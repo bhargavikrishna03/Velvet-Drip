@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { useCart } from "../Context/CartContext";
 
@@ -74,11 +73,11 @@ const Cart = () => {
 
               {cartItems.map((item) => (
                 <div
-                  key={item._id}
+                  key={item.cartKey}
                   className="flex flex-col gap-5 rounded-2xl border border-[#eadfd2] bg-white p-4 shadow-sm sm:flex-row sm:items-center"
                 >
 
-                  {/* Dish Image */}
+                  {/* Item Image */}
                   <img
                     src={
                       item.image ||
@@ -88,7 +87,7 @@ const Cart = () => {
                     className="h-32 w-full rounded-xl object-cover sm:w-32"
                   />
 
-                  {/* Dish Details */}
+                  {/* Item Details */}
                   <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-widest text-[#9a5f3d]">
                       {item.category}
@@ -113,7 +112,7 @@ const Cart = () => {
                     <div className="flex items-center gap-3 rounded-xl bg-[#f5ece1] p-2">
                       <button
                         type="button"
-                        onClick={() => decreaseQuantity(item._id)}
+                        onClick={() => decreaseQuantity(item._id, item.type)}
                         className="rounded-lg bg-white px-3 py-1 font-bold text-[#713f2b] hover:bg-[#713f2b] hover:text-white"
                       >
                         −
@@ -125,7 +124,7 @@ const Cart = () => {
 
                       <button
                         type="button"
-                        onClick={() => increaseQuantity(item._id)}
+                        onClick={() => increaseQuantity(item._id, item.type)}
                         className="rounded-lg bg-white px-3 py-1 font-bold text-[#713f2b] hover:bg-[#713f2b] hover:text-white"
                       >
                         +
@@ -134,7 +133,7 @@ const Cart = () => {
 
                     <button
                       type="button"
-                      onClick={() => removeFromCart(item._id)}
+                      onClick={() => removeFromCart(item._id, item.type)}
                       className="text-sm font-semibold text-red-600 hover:text-red-800"
                     >
                       Remove
@@ -189,12 +188,12 @@ const Cart = () => {
                 <span>₹{cartTotal.toFixed(2)}</span>
               </div>
 
-         <Link
-  to="/checkout"
-  className="mt-7 block w-full rounded-xl bg-[#713f2b] px-5 py-4 text-center font-bold text-white transition hover:bg-[#513326]"
->
-  Proceed to Checkout →
-</Link>
+              <Link
+                to="/checkout"
+                className="mt-7 block w-full rounded-xl bg-[#713f2b] px-5 py-4 text-center font-bold text-white transition hover:bg-[#513326]"
+              >
+                Proceed to Checkout →
+              </Link>
 
               <p className="mt-4 text-center text-xs text-[#9a7c69]">
                 Thank you for choosing Velvet Drip!
