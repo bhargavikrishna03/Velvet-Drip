@@ -8,7 +8,7 @@ import Cart from "./pages/Cart";
 import Navbar from "./Components/Navbar";
 import Hero from "./Components/Hero";
 import Checkout from "./pages/Checkout";
-
+import TrackOrder from "./pages/TrackOrder";
 import About from "./Components/About";
 import Contact from "./Components/Contact"
 import Footer from "./Components/Footer"
@@ -32,7 +32,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
 
       <Route path="/admin/login" element={<AdminLogin />} />
-
+      <Route path="/track/:token" element={<TrackOrder />} />
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
