@@ -224,16 +224,16 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// ========================================
-// GET: Track customer order using token
-// ========================================
+
 router.get("/track/:token", async (req, res) => {
   try {
     const token = req.params.token.trim();
 
     const order = await Order.findOne({
       trackingToken: token,
-    }).select("items totalAmount status paymentStatus createdAt");
+    }).select(
+      "_id customerName items totalAmount status paymentStatus createdAt"
+    );
 
     if (!order) {
       return res.status(404).json({
@@ -244,6 +244,8 @@ router.get("/track/:token", async (req, res) => {
     return res.status(200).json({
       message: "Order retrieved successfully!",
       order: {
+        orderId: order._id,
+        customerName: order.customerName,
         items: order.items,
         totalAmount: order.totalAmount,
         status: order.status,
