@@ -306,7 +306,7 @@ Thank you for choosing Velvet Drip!
             </Link>
 
             <Link
-              to="/menu"
+              to="/#fullmenu"
               className="rounded-lg border border-[#713f2b] px-6 py-3 font-semibold text-[#713f2b] transition hover:bg-[#fffaf3]"
             >
               Order More
