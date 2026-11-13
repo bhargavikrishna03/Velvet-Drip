@@ -10,9 +10,9 @@ import Hero from "./Components/Hero";
 import Checkout from "./pages/Checkout";
 import TrackOrder from "./pages/TrackOrder";
 import About from "./Components/About";
-import Contact from "./Components/Contact"
-import Footer from "./Components/Footer"
-// Customer homepage
+import Contact from "./Components/Contact";
+import Footer from "./Components/Footer";
+
 function Home() {
   return (
     <>
@@ -20,8 +20,8 @@ function Home() {
       <Hero />
       <Menu />
       <About />
-      <Contact/>
-      <Footer/>
+      <Contact />
+      <Footer />
     </>
   );
 }
@@ -31,11 +31,15 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
 
+      <Route path="/menu" element={<Menu />} />
+
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/track/:token" element={<TrackOrder />} />
       <Route path="/admin" element={<AdminDashboard />} />
+
       <Route path="/cart" element={<Cart />} />
       <Route path="/checkout" element={<Checkout />} />
+
+      <Route path="/track/:token" element={<TrackOrder />} />
     </Routes>
   );
 }
